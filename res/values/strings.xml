@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SocialPlay</string>
+    <string name="app_title">VideoSocialPlay</string>
+    <string name="result">Chat Room Connected</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="button_speak">Speak Your Issue</string>
+    <string name="button_connect">Connect To Social Play</string>
+</resources>

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <issue id="NewApi">
+        <ignore path="src/com/chinamobile/webrtc/ConfirmDialogFragment.java" />
+    </issue>
+    <issue id="Override">
+        <ignore path="src/com/chinamobile/webrtc/MyPersonalRep.java" />
+        <ignore path="src/com/peets/webrtc/WebRTCActivity.java" />
+    </issue>
+</lint>
