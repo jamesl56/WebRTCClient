@@ -40,16 +40,18 @@ public class WebRTCActivity extends Activity {
 	private static String WEBRTC_URL = "https://apprtc.appspot.com";
 	private static final String USER_AGENT_HEADER = "User-Agent";
 	private static final String NAME = "chatRoomId";
+
+	// state information
 	private String chatRoom = null;
 	private boolean acceptIncomingRequest = false;
-	
+	private boolean chatInProgress = false;
+
 	// server related constants
-	private static final String BASE_URL = "http://54.183.35.231:8080/CustomerService-server";
-	private static final String SERVER_URL = BASE_URL + "/customerService";
+	private static final String BASE_URL = "http://54.183.228.194:8080/CustomerService-server/";
+	private static final String SERVER_URL = BASE_URL + "customerService";
 	private static final String GET_URL = SERVER_URL + "/1";
 	private static final String FIND_URL = SERVER_URL + "?action=findChatRoom";
 	private static final String CREATE_FORMAT = "{\"chatRoomId\":%s}";
-
 
 	/**
 	 * Called when the activity is first created. This is where we'll hook up
@@ -61,57 +63,54 @@ public class WebRTCActivity extends Activity {
 
 		Log.d("WebRTCActivity", "On create");
 		setContentView(R.layout.speech);
-		
+
 		// this is the button for a user to connect to a friend
 		connectButton = (Button) findViewById(R.id.connect_button);
-		connectButton.setOnClickListener(new OnClickListener(){
+		connectButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				Log.d("WebRTCActivity", "OnClick connectButton");
-				
+
 				// when clicked, it first finds a chat room to join
-				findChatRoom();
-				
-				// this will connects the current user to the chat room
-				// found above.
-				handleCheck();				
+				findChatRoomAndConnect();
 			}
 		});
 
-		hangupButton = (Button)findViewById(R.id.hangup_button);
-		hangupButton.setOnClickListener(new OnClickListener(){
+		hangupButton = (Button) findViewById(R.id.hangup_button);
+		hangupButton.setOnClickListener(new OnClickListener() {
 			@Override
 			public void onClick(View v) {
 				Log.d("WebRTCActivity", "hangupButton OnClick");
-				
+
 				// when clicked, it hang up the call and clean the webview
-				clearWebViewCache();				
+				clearWebViewCache();
 			}
 		});
 		// This will show a web view that hosts the video chat
 		webView = (WebView) findViewById(R.id.webview);
 	}
 
-    /**
-     * @Title: clearWebViewCache
-     * @Description: Hang up method , clear webview cache
-     * @param
-     * @return void
-     * @throws
-     */
-    protected void clearWebViewCache() {
-    	Log.d("WebRTCActivity", "clearWebViewCache will clear view");
-        // before reload URL clear the web cache make sure setting info clear .
-        webView.clearCache(true);
-        webView.reload();
-        webView.evaluateJavascript("if(window.localStream){window.localStream.stop();}", null);
-               
-//        initWebView();
-        
-        hangupButton.setEnabled(false);
-        connectButton.setEnabled(true);
-    }
-    
+	/**
+	 * @Title: clearWebViewCache
+	 * @Description: Hang up method , clear webview cache
+	 * @param
+	 * @return void
+	 * @throws
+	 */
+	protected void clearWebViewCache() {
+		Log.d("WebRTCActivity", "clearWebViewCache will clear view");
+		// before reload URL clear the web cache make sure setting info clear .
+		webView.clearCache(true);
+		// webView.reload();
+		webView.evaluateJavascript(
+				"if(window.localStream){window.localStream.stop();}", null);
+
+		// reset state and button states
+		chatInProgress = false;
+		hangupButton.setEnabled(false);
+		connectButton.setEnabled(true);
+	}
+
 	/**
 	 * Called when the activity is coming to the foreground. This is where we
 	 * will check whether there's an incoming connection.
@@ -120,29 +119,38 @@ public class WebRTCActivity extends Activity {
 	protected void onStart() {
 		super.onStart();
 
-		Log.d("WebRTCActivity", "on start: will check whether there's existing connection");
-		checkExistingConnection();
+		Log.d("WebRTCActivity", "on start: chatInProgress = " + chatInProgress);
+
+		if (!chatInProgress) {
+			Log.d("WebRTCActivity",
+					"on start: will check whether there's existing connection");
+			checkExistingConnection();
+		}
 	}
 
 	/**
 	 * method to check whether there's an incoming connection
 	 */
 	private void checkExistingConnection() {
-		Log.d("WebRTCActivity", "getExistingConnection: will connnect to " + GET_URL);
-		
-		// call to the server to find out whether there is 
+		Log.d("WebRTCActivity", "getExistingConnection: will connnect to "
+				+ GET_URL);
+
+		// call to the server to find out whether there is
 		// an incoming connection through an async task
 		SocialPlayServer server = SocialPlayServer.get(GET_URL);
 		server.getTo(new ServerGetListener());
+
+		// before checkExistingConnection calls back, the connect button remains
+		// disabled
 		connectButton.setText(R.string.wait);
 		connectButton.setEnabled(false);
 	}
 
 	/**
-	 * method to find a chat room to join, this is for the initiator 
-	 * of a video chat
+	 * method to find a chat room to join, this is for the initiator of a video
+	 * chat
 	 */
-	private void findChatRoom() {
+	private void findChatRoomAndConnect() {
 		Log.d("WebRTCActivity", "findChatRoom");
 		SocialPlayServer server = SocialPlayServer.findChatRoom(FIND_URL);
 		server.fetchTo(new ServerFindListener());
@@ -150,24 +158,49 @@ public class WebRTCActivity extends Activity {
 		connectButton.setEnabled(false);
 	}
 
+	/**
+	 * method to post the chat room to server so it knows one party already
+	 * connected and the 2nd party can then be prompted to connect
+	 * 
+	 * @param serverUrl
+	 * @param chatRoomId
+	 */
 	private void create(String serverUrl, String chatRoomId) {
 		Log.d("WebRTCActivity", "create");
-		SocialPlayServer server = SocialPlayServer.create(serverUrl, chatRoomId);
-		server.createTo(new ServerFindListener());
-		connectButton.setText(R.string.wait);
-		connectButton.setEnabled(false);
+		SocialPlayServer server = SocialPlayServer
+				.create(serverUrl, chatRoomId);
+		server.createTo(new ServerCreateListener());
 	}
-	
-	private void sleep(long milliseconds)
-	{
-		try{
-			Log.d("WebRTCActivity", "will sleep " + milliseconds + "milliseconds");
+
+	/**
+	 * this is kind of hack for now to use a GET instead of a POST
+	 * method to create an entry on the server side about the chat room
+	 * currently joined
+	 * @param serverUrl
+	 * @param chatRoomId
+	 */
+	private void createAsGet(String serverUrl, String chatRoomId) {
+		Log.d("WebRTCActivity", "create");
+		SocialPlayServer server = SocialPlayServer.createAsGet(serverUrl,
+				chatRoomId);
+		server.getTo(new ServerCreateAsGetListener());
+	}
+
+	/**
+	 * utility to do sleep
+	 * @param milliseconds
+	 */
+	private void sleep(long milliseconds) {
+		try {
+			Log.d("WebRTCActivity", "will sleep " + milliseconds
+					+ "milliseconds");
 			Thread.sleep(milliseconds);
-		}catch(Exception ex)
-		{
-			Log.d("WebRTCActivity", "sleep encounters exception: " + ex.getMessage());
+		} catch (Exception ex) {
+			Log.d("WebRTCActivity",
+					"sleep encounters exception: " + ex.getMessage());
 		}
 	}
+
 	/**
 	 * Handle the result of an asynchronous Find request to server
 	 **/
@@ -175,16 +208,18 @@ public class WebRTCActivity extends Activity {
 		public void handleResponse(String chatRoomId, Exception error) {
 			if (chatRoomId != null) {
 				chatRoom = chatRoomId;
-				Log.d("WebRTCActivity", "ServerFindListener returns: " + chatRoomId);
-				connectButton.setText(R.string.button_connect);
-				connectButton.setEnabled(true);
-//				hangupButton.setEnabled(false);
+				Log.d("WebRTCActivity", "ServerFindListener returns: "
+						+ chatRoomId);
+				// connectButton.setText(R.string.button_connect);
+				// connectButton.setEnabled(false);
+				// hangupButton.setEnabled(true);
+				handleConnection();
 			} else {
 				Log.v("WebRTCActivity", "Server error: " + error);
-				// There was either a network error or authentication error.
+				// There was either a network error or server error.
 				// Show alert for the latter.
-				alert("Server Unavailable",
-						"This app was rejected by the server.  Contact the developer for an update.");
+				alert("Failed to find a chat room to join!",
+						"Please try again!");
 			}
 		}
 	}
@@ -196,45 +231,78 @@ public class WebRTCActivity extends Activity {
 		public void handleResponse(String chatRoomId, Exception error) {
 			if (chatRoomId != null) {
 				chatRoom = chatRoomId;
-				Log.d("WebRTCActivity", "ServerGetListener returns: " + chatRoomId);
-				alertConnection("Your friend wants to connect you to the Social Play", "Do you want to connect?");
+				Log.d("WebRTCActivity", "ServerGetListener returns: "
+						+ chatRoomId);
+				alertConnection(
+						"Your friend wants to connect you to the Social Play",
+						"Do you want to connect?");
 			} else {
 				Log.v("WebRTCActivity", "ServerGetListener returns null.");
-				alert("WebRTCActivity",
-						"No existing connection");
+				// alert("WebRTCActivity",
+				// "No existing connection");
 				connectButton.setText(R.string.button_connect);
 				connectButton.setEnabled(true);
-//				hangupButton.setEnabled(false);
+				hangupButton.setEnabled(false);
 			}
 		}
 	}
 
+	/**
+	 * Handle the result of an asynchronous CREATE request to server 
+	 *
+	 */
 	private class ServerCreateListener implements SocialPlayServer.Client {
 		public void handleResponse(String chatRoomId, Exception error) {
-			Log.d("WebRTCActivity", "ServerCreateListener returns: " + chatRoomId);
+			Log.d("WebRTCActivity", "ServerCreateListener returns: "
+					+ chatRoomId);
 			if (error == null) {
-				alert("WebRTCActivity",
-						"Sent To Server");
+				Log.d("WebRTCActivity", "Sent To Server successfully");
 				connectButton.setText(R.string.button_connect);
 				connectButton.setEnabled(true);
-//				hangupButton.setEnabled(false);
+				// hangupButton.setEnabled(false);
+			} else {
+				alert("Failed to communicate to server! Error: "
+						+ error.getMessage(),
+						"Other party can't join this chat!");
 			}
 		}
 	}
-	
-	private void initWebView()
-	{
+
+	/**
+	 * 
+	 * Handle the result of an asynchronous GET request to server
+	 * It's kind of hack now to use a GET instead of a CREATE
+	 */
+	private class ServerCreateAsGetListener implements SocialPlayServer.Client {
+		public void handleResponse(String chatRoomId, Exception error) {
+			Log.d("WebRTCActivity", "ServerCreateAsGetListener returns: "
+					+ chatRoomId);
+			if (chatRoomId != null && error == null) {
+				Log.d("WebRTCActivity", "Sent To Server successfully");
+				loadWebView(WEBRTC_URL + "/r/" + chatRoomId);
+			} else {
+				alert("Failed to communicate to server! Error: "
+						+ error.getMessage(),
+						"Other party can't join this chat!");
+			}
+		}
+	}
+
+	/**
+	 * initialize the web view
+	 */
+	private void initWebView() {
 		WebSettings webSettings = webView.getSettings();
 		webSettings.setJavaScriptEnabled(true);
 		webSettings.setDatabaseEnabled(true);
 		webSettings.setDomStorageEnabled(true);
 		webSettings.setAppCacheEnabled(true);
 		webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-		//webView.setWebViewClient(new WebViewClient() {
+		// webView.setWebViewClient(new WebViewClient() {
 		webView.setWebChromeClient(new WebChromeClient() {
 
 			@SuppressLint("NewApi")
-			//@Override
+			// @Override
 			public void onPermissionRequest(final PermissionRequest request) {
 				runOnUiThread(new Runnable() {
 					@TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -248,64 +316,76 @@ public class WebRTCActivity extends Activity {
 
 		});
 	}
-	
-	private boolean waitForRoomIsReady()
-	{
+
+	/**
+	 * method to wait for a small period of time until a chat room is ready
+	 * 
+	 * @return
+	 */
+	private boolean waitForRoomIsReady() {
 		int count = 5;
 		boolean ready = false;
-		while(!ready && count > 0)
-		{
+		while (!ready && count > 0) {
 			if (chatRoom == null) {
 				Log.d("WebRTCActivity", "found charRoom as null");
 				sleep(500);
 				count--;
-			}
-			else
+			} else
 				ready = true;
 		}
-		
+
 		return ready;
 	}
+
 	/**
 	 * this is the main handler that handles connection
 	 */
-	private void handleCheck() {
-		initWebView();
+	private void handleConnection() {
 		try {
-			// check whether it receives the chat room properly
-			if (waitForRoomIsReady()) {
-				// construct the url to apputc with the chat room to connect to
-				String url = WEBRTC_URL + "/r/" + chatRoom;
-				Log.d("WebRTCActivity", "handleCheck: "+ url);
+			// construct the url to apputc with the chat room to connect to
+			String url = WEBRTC_URL + "/r/" + chatRoom;
+			Log.d("WebRTCActivity", "handleCheck: " + url);
 
-				if (!acceptIncomingRequest) {
-					// TODO: need to POST to server
-					Log.d("WebRTCActivity", "POST to server: " + chatRoom);
-					create(SERVER_URL, chatRoom);
+			if (!acceptIncomingRequest) {
+				Log.d("WebRTCActivity", "POST to server: " + BASE_URL
+						+ " for chatRoom:" + chatRoom);
+				
+				// POST to server about the chat room joined
+				createAsGet(SERVER_URL, chatRoom);
 
-					// reset to default
-					acceptIncomingRequest = false;
-					chatRoom = null;
-				}
-
-				// have the webview load the url
-				webView.loadUrl(url);
-				Log.d("WebRTCActivity", "handleCheck loaded url");
-				connectButton.setEnabled(false);
-				hangupButton.setEnabled(true);
+				// reset to default
+				acceptIncomingRequest = false;
+				chatRoom = null;
 			} else {
-				alert("Failed to find a chat room to join!",
-						"Please try again!");
+				// now ready to connect
+				loadWebView(url);
 			}
+
 		} catch (Exception ex) {
 			Log.d("WebRTCActivity", "exception: " + ex.getMessage());
 		}
 	}
 
 	/**
-	 * Show an alert dialog with message. 
-	 * user can either click OK or cancel
-	 * no real action is triggered
+	 * method to use the web view to load the apprtc url and join a video chat room
+	 * @param url
+	 */
+	private void loadWebView(String url) {
+		Log.d("WebRTCActivity", "loadWebView loaded url");
+		initWebView();
+		// have the webview load the url
+		webView.loadUrl(url);
+		chatInProgress = true;
+		Log.d("WebRTCActivity", "loadWebView chatInProgress: " + chatInProgress);
+		connectButton.setText(R.string.button_connect);
+		connectButton.setEnabled(false);
+		hangupButton.setEnabled(true);
+	}
+
+	/**
+	 * Show an alert dialog with message. user can either click OK or cancel no
+	 * real action is triggered
+	 * 
 	 * @param header
 	 * @param message
 	 */
@@ -327,10 +407,11 @@ public class WebRTCActivity extends Activity {
 	}
 
 	/**
-	 * pops up an alert dialog with 2 messages, one as the header
-	 * and the other as the message to be shown in the dialog.
-	 * if user clicks on NO, it enable the connect button on screen
-	 * if user clicks on YES, it connects user to the incoming request
+	 * pops up an alert dialog with 2 messages, one as the header and the other
+	 * as the message to be shown in the dialog. if user clicks on NO, it enable
+	 * the connect button on screen if user clicks on YES, it connects user to
+	 * the incoming request
+	 * 
 	 * @param header
 	 * @param message
 	 */
@@ -355,7 +436,7 @@ public class WebRTCActivity extends Activity {
 									int which) {
 								dialog.dismiss();
 								acceptIncomingRequest = true;
-								handleCheck();
+								handleConnection();
 							}
 						});
 		AlertDialog alert = builder.create();

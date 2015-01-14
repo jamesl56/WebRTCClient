@@ -19,6 +19,7 @@ import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClient;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
+import com.linkedin.restli.client.CreateRequest;
 import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.ResponseFuture;
 import com.linkedin.restli.client.RestClient;
@@ -92,6 +93,34 @@ public class SocialPlayServer {
 		}
 	}
 
+	/**
+	 * this is a hack to post to server, it reuses the get methods to
+	 * send response to client
+	 * @param baseUrl
+	 * @return
+	 * @throws IllegalArgumentException
+	 */
+	public static SocialPlayServer createAsGet(String serverUrl, String chatRoomId)
+			throws IllegalArgumentException {
+		try {
+			String targetUrl = serverUrl + "/" + chatRoomId;
+			URL url = new URL(targetUrl);
+			HttpURLConnection request = (HttpURLConnection) url
+					.openConnection();
+			request.setConnectTimeout(CONNECT_TIMEOUT);
+			request.setReadTimeout(READ_TIMEOUT);
+			return new SocialPlayServer(request, null);
+		} catch (IOException e) {
+			throw new IllegalArgumentException(e);
+		} 
+	}
+	
+	/**
+	 * this is to call CREATE to server
+	 * @param serverUrl
+	 * @param chatRoomId
+	 * @return
+	 */
 	public static SocialPlayServer create(String serverUrl, String chatRoomId) {
 		HttpURLConnection request = null;
 		try {
@@ -114,17 +143,16 @@ public class SocialPlayServer {
 			CustomerServiceContext csc = new CustomerServiceContext()
 					.setChatRoomId(chatRoomId).setTimestamp(
 							new Date().getTime());
-			Log.d("SocialPlayServer", "in create: will send create request");
+			CreateRequest<CustomerServiceContext> createReq = builders.create().input(csc).build();
+			Log.d("SocialPlayServer", "in create: will send create request: " + createReq.toString());
 			ResponseFuture<EmptyRecord> createFuture = restClient
-					.sendRequest(builders.create().input(csc).build());
+					.sendRequest(createReq);
 			Log.d("SocialPlayServer", "request sent");
 			Response<EmptyRecord> createResp = createFuture.getResponse();
 			int statusCode = createResp.getStatus();
 			Log.d("SocialPlayServer", "create receives status code: "
 					+ statusCode);
 
-			request.setConnectTimeout(CONNECT_TIMEOUT);
-			request.setReadTimeout(READ_TIMEOUT);
 			return new SocialPlayServer(request, null);
 		} catch (IOException e) {
 			throw new IllegalArgumentException(e);
@@ -138,6 +166,7 @@ public class SocialPlayServer {
 		}
 	}
 
+	// connection parameters
 	private static final int CONNECT_TIMEOUT = 5 * 1000; // milliseconds
 	private static final int READ_TIMEOUT = 5 * 1000;
 
