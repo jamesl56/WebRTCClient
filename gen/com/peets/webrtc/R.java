@@ -17,8 +17,8 @@ public final class R {
         public static final int steward=0x7f020003;
     }
     public static final class id {
-        public static final int result=0x7f050002;
-        public static final int speak_button=0x7f050001;
+        public static final int connect_button=0x7f050001;
+        public static final int hangup_button=0x7f050002;
         public static final int webview=0x7f050000;
     }
     public static final class layout {
@@ -28,9 +28,9 @@ public final class R {
         public static final int app_name=0x7f040000;
         public static final int app_title=0x7f040001;
         public static final int button_connect=0x7f040006;
-        public static final int button_speak=0x7f040005;
+        public static final int button_hangup=0x7f040005;
         public static final int no=0x7f040004;
-        public static final int result=0x7f040002;
+        public static final int wait=0x7f040002;
         public static final int yes=0x7f040003;
     }
 }

@@ -15,15 +15,15 @@
         android:padding="6dp">
 
         <Button
-            android:id="@+id/speak_button"
+            android:id="@+id/connect_button"
             android:layout_width="110dp"
             android:layout_height="wrap_content"
             android:text="@string/button_connect" />
 
-	    <TextView android:id="@+id/result"
-	        android:layout_width="fill_parent"
-	        android:layout_height="wrap_content"
-	        android:paddingLeft="6dp"
-	        android:text="@string/result"/>
+        <Button
+            android:id="@+id/hangup_button"
+            android:layout_width="110dp"
+            android:layout_height="wrap_content"
+            android:text="@string/button_hangup" />
 	</LinearLayout>
 </LinearLayout>

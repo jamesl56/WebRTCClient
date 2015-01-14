@@ -6,10 +6,24 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.Date;
 import java.util.Locale;
+import java.util.Collections;
 
 import org.json.JSONObject;
 
+import com.chinamobile.customerservice.server.CustomerServiceBuilders;
+import com.chinamobile.customerservice.server.CustomerServiceContext;
+import com.chinamobile.customerservice.server.CustomerServiceRequestBuilders;
+import com.linkedin.r2.transport.common.Client;
+import com.linkedin.r2.transport.common.bridge.client.TransportClient;
+import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
+import com.linkedin.r2.transport.http.client.HttpClientFactory;
+import com.linkedin.restli.client.Response;
+import com.linkedin.restli.client.ResponseFuture;
+import com.linkedin.restli.client.RestClient;
+import com.linkedin.restli.common.EmptyRecord;
+import com.linkedin.restli.common.IdResponse;
 import android.os.Handler;
 import android.util.Log;
 
@@ -32,6 +46,7 @@ public class SocialPlayServer {
 	/**
 	 * the action to call to server to find a chat room via async task here it
 	 * connects to the server via the url passed in
+	 * 
 	 * @param baseUrl
 	 * @return
 	 * @throws IllegalArgumentException
@@ -55,6 +70,7 @@ public class SocialPlayServer {
 
 	/**
 	 * this is a similar GET operation as the find action
+	 * 
 	 * @param baseUrl
 	 * @return
 	 * @throws IllegalArgumentException
@@ -76,12 +92,59 @@ public class SocialPlayServer {
 		}
 	}
 
+	public static SocialPlayServer create(String serverUrl, String chatRoomId) {
+		HttpURLConnection request = null;
+		try {
+			URL url = new URL(serverUrl);
+			request = (HttpURLConnection) url.openConnection();
+			Log.d("SocialPlayServer", "in create: " + serverUrl + " "
+					+ chatRoomId);
+			final HttpClientFactory http = new HttpClientFactory();
+			final TransportClient transportClient = http.getClient(Collections
+					.<String, String> emptyMap());
+			// create an abstraction layer over the actual client, which
+			// supports both REST and RPC
+			final com.linkedin.r2.transport.common.Client r2Client = new TransportClientAdapter(
+					transportClient);
+
+			// Create a RestClient to talk to server
+			RestClient restClient = new RestClient(r2Client, serverUrl);
+			CustomerServiceBuilders builders = new CustomerServiceBuilders();
+
+			CustomerServiceContext csc = new CustomerServiceContext()
+					.setChatRoomId(chatRoomId).setTimestamp(
+							new Date().getTime());
+			Log.d("SocialPlayServer", "in create: will send create request");
+			ResponseFuture<EmptyRecord> createFuture = restClient
+					.sendRequest(builders.create().input(csc).build());
+			Log.d("SocialPlayServer", "request sent");
+			Response<EmptyRecord> createResp = createFuture.getResponse();
+			int statusCode = createResp.getStatus();
+			Log.d("SocialPlayServer", "create receives status code: "
+					+ statusCode);
+
+			request.setConnectTimeout(CONNECT_TIMEOUT);
+			request.setReadTimeout(READ_TIMEOUT);
+			return new SocialPlayServer(request, null);
+		} catch (IOException e) {
+			throw new IllegalArgumentException(e);
+		} catch (Exception ex) {
+			Log.d("SocialPlayServer", "in create: " + ex.getMessage());
+			for (StackTraceElement elem : ex.getStackTrace()) {
+				Log.d("SocialPlayServer", "in create: " + elem.toString());
+			}
+
+			return new SocialPlayServer(request, null);
+		}
+	}
+
 	private static final int CONNECT_TIMEOUT = 5 * 1000; // milliseconds
 	private static final int READ_TIMEOUT = 5 * 1000;
 
 	/**
 	 * Create a loader for a URLConnection that returns the response data to a
 	 * client.
+	 * 
 	 * @param request
 	 * @param postData
 	 */
@@ -104,10 +167,10 @@ public class SocialPlayServer {
 		// connection.disconnect();
 	}
 
-
 	/**
 	 * this is paired with the find method above which will start a separate
 	 * thread to complete the find action by fetching the http response
+	 * 
 	 * @param client
 	 */
 	public void fetchTo(Client client) {
@@ -124,8 +187,9 @@ public class SocialPlayServer {
 	}
 
 	/**
-	 * complete the find action and post the result to a client
-	 * to be consumed in the UI thread to determine what to do
+	 * complete the find action and post the result to a client to be consumed
+	 * in the UI thread to determine what to do
+	 * 
 	 * @param callingThread
 	 */
 	private void performFind(Handler callingThread) {
@@ -171,6 +235,7 @@ public class SocialPlayServer {
 
 	/**
 	 * similar to the find this is paired with get method
+	 * 
 	 * @param client
 	 */
 	public void getTo(Client client) {
@@ -188,6 +253,7 @@ public class SocialPlayServer {
 
 	/**
 	 * fetch the http response from get method and send to client
+	 * 
 	 * @param callingThread
 	 */
 	private void performGet(Handler callingThread) {
@@ -222,6 +288,52 @@ public class SocialPlayServer {
 					if (client != null) {
 						Log.d("SocialPlayServer",
 								"handleResponse will send null");
+						client.handleResponse(null, ex);
+					}
+				}
+			});
+		}
+	}
+
+	/**
+	 * for create
+	 * 
+	 * @param client
+	 */
+	public void createTo(Client client) {
+		this.client = client;
+
+		final Handler callingThread = new Handler();
+		Thread reader = new Thread(connection.getURL().toString()) {
+			@Override
+			public void run() {
+				performCreate(callingThread);
+			}
+		};
+		reader.start();
+	}
+
+	/**
+	 * fetch the create response and send back to client
+	 * 
+	 * @param callingThread
+	 */
+	private void performCreate(Handler callingThread) {
+		try {
+			// Give it back to the client.
+			callingThread.post(new Runnable() {
+				public void run() {
+					if (client != null) {
+						Log.d("SocialPlayServer", "performCreate");
+						client.handleResponse(null, null);
+					}
+				}
+			});
+		} catch (final Exception ex) {
+			callingThread.post(new Runnable() {
+				public void run() {
+					if (client != null) {
+						Log.d("SocialPlayServer", "performCreate");
 						client.handleResponse(null, ex);
 					}
 				}
