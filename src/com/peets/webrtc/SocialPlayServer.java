@@ -93,6 +93,24 @@ public class SocialPlayServer {
 		}
 	}
 
+	public String performGet() {
+		try {
+			connection.setRequestMethod("GET");
+			InputStream response = connection.getInputStream();
+			byte[] data = readAllBytes(response);
+			// Extract the chatRoomId from JSON.
+			String body = new String(data, "UTF8");
+			JSONObject json = new JSONObject(body);
+			Log.d("SocialPlayServer", "performGet received: " + body);
+			final String chatRoomId = json.getString("chatRoomId");
+			Log.d("SocialPlayServer", "performGet received chatRoomId: "
+					+ chatRoomId);
+			return chatRoomId;
+		} catch (final Exception ex) {
+			Log.d("SocialPlayServer", "performGet received exception:" + ex.getMessage());
+			return null;
+		}
+	}
 	/**
 	 * this is a hack to post to server, it reuses the get methods to
 	 * send response to client
