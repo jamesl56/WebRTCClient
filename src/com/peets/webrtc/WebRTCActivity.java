@@ -44,13 +44,15 @@ public class WebRTCActivity extends Activity {
 
 	// state information
 	private String chatRoom = null;
+	private String previousChatRoom = null;
 	private boolean acceptIncomingRequest = false;
 	private boolean chatInProgress = false;
 
 	// server related constants
-	private static final String BASE_URL = "http://54.183.228.194:8080/CustomerService-server/";
-	private static final String SERVER_URL = BASE_URL + "customerService";
+	private static final String BASE_URL = "http://54.183.228.194:8080/SocialPlay-server/";
+	private static final String SERVER_URL = BASE_URL + "socialPlay";
 	private static final String GET_URL = SERVER_URL + "/1";
+	private static final String UPDATE_URL = SERVER_URL + "/2";
 	private static final String FIND_URL = SERVER_URL + "?action=findChatRoom";
 	private static final String CREATE_FORMAT = "{\"chatRoomId\":%s}";
 
@@ -112,6 +114,12 @@ public class WebRTCActivity extends Activity {
 		chatInProgress = false;
 		hangupButton.setEnabled(false);
 		connectButton.setEnabled(true);
+		
+		// reset to default
+		acceptIncomingRequest = false;
+		previousChatRoom = chatRoom;	// remember the previous chat room
+		Log.d("WebRTCActivity", "clearWebViewCache preserve previous chat room: " + previousChatRoom);
+		chatRoom = null;
 		
 		// once a video session is terminated it needs to monitor
 		// incoming connection again
@@ -178,7 +186,8 @@ public class WebRTCActivity extends Activity {
 					SocialPlayServer server = SocialPlayServer.get(GET_URL);
 					response = server.performGet();
 					if (response != null && !chatInProgress) {
-						break;
+						if(previousChatRoom == null || !response.equals(previousChatRoom))
+							break;
 					}
 				}
 				sleep(1000);
@@ -406,10 +415,6 @@ public class WebRTCActivity extends Activity {
 
 				// POST to server about the chat room joined
 				createAsGet(SERVER_URL, chatRoom);
-
-				// reset to default
-				acceptIncomingRequest = false;
-				chatRoom = null;
 			} else {
 				// now ready to connect
 				loadWebView(url);

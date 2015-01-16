@@ -12,9 +12,9 @@ import java.util.Collections;
 
 import org.json.JSONObject;
 
-import com.chinamobile.customerservice.server.CustomerServiceBuilders;
-import com.chinamobile.customerservice.server.CustomerServiceContext;
-import com.chinamobile.customerservice.server.CustomerServiceRequestBuilders;
+import com.peets.socialplay.server.SocialPlayBuilders;
+import com.peets.socialplay.server.SocialPlayContext;
+import com.peets.socialplay.server.SocialPlayRequestBuilders;
 import com.linkedin.r2.transport.common.Client;
 import com.linkedin.r2.transport.common.bridge.client.TransportClient;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
@@ -156,12 +156,12 @@ public class SocialPlayServer {
 
 			// Create a RestClient to talk to server
 			RestClient restClient = new RestClient(r2Client, serverUrl);
-			CustomerServiceBuilders builders = new CustomerServiceBuilders();
+			SocialPlayBuilders builders = new SocialPlayBuilders();
 
-			CustomerServiceContext csc = new CustomerServiceContext()
+			SocialPlayContext csc = new SocialPlayContext()
 					.setChatRoomId(chatRoomId).setTimestamp(
 							new Date().getTime());
-			CreateRequest<CustomerServiceContext> createReq = builders.create().input(csc).build();
+			CreateRequest<SocialPlayContext> createReq = builders.create().input(csc).build();
 			Log.d("SocialPlayServer", "in create: will send create request: " + createReq.toString());
 			ResponseFuture<EmptyRecord> createFuture = restClient
 					.sendRequest(createReq);
