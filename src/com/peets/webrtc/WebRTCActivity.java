@@ -65,7 +65,7 @@ public class WebRTCActivity extends Activity {
 		super.onCreate(savedInstanceState);
 
 		Log.d("WebRTCActivity", "On create");
-		setContentView(R.layout.speech);
+		setContentView(R.layout.videochat);
 
 		// this is the button for a user to connect to a friend
 		connectButton = (Button) findViewById(R.id.connect_button);
@@ -503,5 +503,4 @@ public class WebRTCActivity extends Activity {
 		AlertDialog alert = builder.create();
 		alert.show();
 	}
-
 }

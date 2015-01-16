@@ -16,7 +16,7 @@
 
         <Button
             android:id="@+id/connect_button"
-            android:layout_width="110dp"
+            android:layout_width="220dp"
             android:layout_height="wrap_content"
             android:text="@string/button_connect" />
 
