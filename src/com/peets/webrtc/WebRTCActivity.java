@@ -14,6 +14,7 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Build;
 import android.os.Bundle;
@@ -36,6 +37,7 @@ import android.widget.TextView;
 public class WebRTCActivity extends Activity {
 	private Button connectButton = null;
 	private Button hangupButton = null;
+//	private Button playButton = null;
 	private WebView webView = null;
 	private static final String USER_AGENT = "Mozilla/5.0";
 	private static String WEBRTC_URL = "https://apprtc.appspot.com";
@@ -55,6 +57,11 @@ public class WebRTCActivity extends Activity {
 	private static final String UPDATE_URL = SERVER_URL + "/2";
 	private static final String FIND_URL = SERVER_URL + "?action=findChatRoom";
 	private static final String CREATE_FORMAT = "{\"chatRoomId\":%s}";
+	
+	private MediaPlayer mp = null;
+	private MediaPlayer mp2 = null;
+	private PlayRingtoneTask pTask = null;
+	private long duration = 0;
 
 	/**
 	 * Called when the activity is first created. This is where we'll hook up
@@ -89,8 +96,31 @@ public class WebRTCActivity extends Activity {
 				clearWebViewCache();
 			}
 		});
+		
+//		playButton = (Button) findViewById(R.id.play_button);
+//		playButton.setOnClickListener(new OnClickListener() {
+//			@Override
+//			public void onClick(View v) {
+//				Log.d("WebRTCActivity", "playButton OnClick");
+//
+//				// when clicked, it hang up the call and clean the webview
+//				playAudio();
+//			}
+//		});
 		// This will show a web view that hosts the video chat
 		webView = (WebView) findViewById(R.id.webview);
+	}
+	
+	@Override
+	protected void onDestroy() {
+		if (null != mp) {
+			mp.release();
+		}
+		
+		if (null != mp2) {
+			mp2.release();
+		}
+		super.onDestroy();
 	}
 
 	/**
@@ -104,10 +134,12 @@ public class WebRTCActivity extends Activity {
 		Log.d("WebRTCActivity", "clearWebViewCache will clear view");
 		// before reload URL clear the web cache make sure setting info clear .
 		webView.clearCache(true);
-		// webView.reload();
-		webView.evaluateJavascript(
-				"if(window.localStream){window.localStream.stop();}", null);
 
+		// stop playing if any
+		if(mp != null){
+			mp.pause();
+		}
+		
 		// reliably reset the view state and release page resources
 		webView.loadUrl("about:blank");
 		// reset state and button states
@@ -125,6 +157,11 @@ public class WebRTCActivity extends Activity {
 		// incoming connection again
 		CheckExistingConnectionTask checkTask = new CheckExistingConnectionTask();
 		checkTask.execute();
+		
+//		if(mp2 == null)
+//		{
+//			mp2 = MediaPlayer.create(this, R.raw.ringtone);
+//		}
 	}
 
 	/**
@@ -142,7 +179,11 @@ public class WebRTCActivity extends Activity {
 //					"on start: will check whether there's existing connection");
 //			checkExistingConnection();
 //		}
-		
+		if(mp2 == null)
+		{
+			mp2 = MediaPlayer.create(this, R.raw.ringtone);
+		}
+		duration = (long)mp2.getDuration() + 500;
 		CheckExistingConnectionTask checkTask = new CheckExistingConnectionTask();
 		checkTask.execute();		
 	}
@@ -199,12 +240,44 @@ public class WebRTCActivity extends Activity {
 		protected void onPostExecute(String result) {
 			chatRoom = result;
 			Log.d("WebRTCActivity", "ServerGetListener returns: " + result);
+			Log.d("WebRTCActivity", "will start PlayRingtoneTask");
+			pTask = new PlayRingtoneTask();
+			pTask.execute();
 			alertConnection("Your friend wants to connect you to the Social Play",
 					"Do you want to connect?");
 		}
 	}
 
+	/**
+	 * the Async task to play ringtone upon an incoming connection
+	 *
+	 */
+	private class PlayRingtoneTask extends
+			AsyncTask<Void, Void, Void> {
+		@Override
+		protected Void doInBackground(Void... param) {
+			int count = 0;
+			
+			while (count < 10) {
+				Log.d("WebRTCActivity", "PlayRingtoneTask doInBackground count: "
+						+ count);
 
+				if (!chatInProgress) {
+					Log.d("WebRTCActivity", "PlayRingtoneTask doInBackground start playing ringtone");
+					mp2.start();
+				}
+				else
+				{
+					break;
+				}
+				sleep(duration);
+				count++;
+			}
+			
+			return (Void)null;
+		}
+		
+	}
 	
 	/**
 	 * method to check whether there's an incoming connection
@@ -361,7 +434,7 @@ public class WebRTCActivity extends Activity {
 		webSettings.setDomStorageEnabled(true);
 		webSettings.setAppCacheEnabled(true);
 		webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-		// webView.setWebViewClient(new WebViewClient() {
+//		 webView.setWebViewClient(new WebViewClient() {
 		webView.setWebChromeClient(new WebChromeClient() {
 
 			@SuppressLint("NewApi")
@@ -416,8 +489,15 @@ public class WebRTCActivity extends Activity {
 				// POST to server about the chat room joined
 				createAsGet(SERVER_URL, chatRoom);
 			} else {
-				// now ready to connect
+				Log.d("WebRTCActivity", "will connect to an incoming connection to chatRoom:" +
+						chatRoom);
+				// now ready to connect, to join the initator's session
 				loadWebView(url);
+				
+				Log.d("WebRTCActivity", "will play audio");
+				// TODO: need to figure out a better way to find out whether
+				// a connection is already established rather than some sleep
+				playAudio();
 			}
 
 		} catch (Exception ex) {
@@ -425,6 +505,22 @@ public class WebRTCActivity extends Activity {
 		}
 	}
 
+	/**
+	 * intend to have a player to play something once a connection is
+	 * established
+	 */
+	private void playAudio()
+	{
+		if(mp == null)
+		{
+			Log.d("WebRTCActivity", "playAudio creates a media player");
+			mp = MediaPlayer.create(this, R.raw.sw);
+		}
+		
+		Log.d("WebRTCActivity", "start media player");
+		mp.start();
+	}
+	
 	/**
 	 * method to use the web view to load the apprtc url and join a video chat
 	 * room
@@ -495,6 +591,15 @@ public class WebRTCActivity extends Activity {
 							@Override
 							public void onClick(DialogInterface dialog,
 									int which) {
+								Log.d("WebRTCActivity", "OK clicked, will stop mp2");
+								mp2.pause();
+//								mp2.release();
+
+								if(pTask != null)
+								{
+									Log.d("WebRTCActivity", "will cancel the pTask");
+									pTask.cancel(true);
+								}
 								dialog.dismiss();
 								acceptIncomingRequest = true;
 								handleConnection();
