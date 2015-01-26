@@ -9,6 +9,7 @@ import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.DefaultHttpClient;
 import org.json.JSONObject;
 
+import android.animation.ObjectAnimator;
 import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.Activity;
@@ -23,13 +24,18 @@ import android.telephony.TelephonyManager;
 import android.util.Log;
 import android.view.View;
 import android.view.View.OnClickListener;
+import android.view.ViewGroup;
+import android.view.ViewPropertyAnimator;
+import android.view.Window;
 import android.webkit.PermissionRequest;
 import android.webkit.WebChromeClient;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
 import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 /*
  * the main activity to host the webRTC connectivity
@@ -37,7 +43,7 @@ import android.widget.TextView;
 public class WebRTCActivity extends Activity {
 	private Button connectButton = null;
 	private Button hangupButton = null;
-//	private Button playButton = null;
+	private ImageView imageView = null;
 	private WebView webView = null;
 	private static final String USER_AGENT = "Mozilla/5.0";
 	private static String WEBRTC_URL = "https://apprtc.appspot.com";
@@ -71,6 +77,9 @@ public class WebRTCActivity extends Activity {
 	public void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
+		// show a progress bar
+		getWindow().requestFeature(Window.FEATURE_PROGRESS);
+		
 		Log.d("WebRTCActivity", "On create");
 		setContentView(R.layout.videochat);
 
@@ -97,16 +106,8 @@ public class WebRTCActivity extends Activity {
 			}
 		});
 		
-//		playButton = (Button) findViewById(R.id.play_button);
-//		playButton.setOnClickListener(new OnClickListener() {
-//			@Override
-//			public void onClick(View v) {
-//				Log.d("WebRTCActivity", "playButton OnClick");
-//
-//				// when clicked, it hang up the call and clean the webview
-//				playAudio();
-//			}
-//		});
+		imageView = (ImageView) findViewById(R.id.imageView1);
+		imageView.setVisibility(View.GONE);
 		// This will show a web view that hosts the video chat
 		webView = (WebView) findViewById(R.id.webview);
 	}
@@ -434,23 +435,6 @@ public class WebRTCActivity extends Activity {
 		webSettings.setDomStorageEnabled(true);
 		webSettings.setAppCacheEnabled(true);
 		webSettings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-//		 webView.setWebViewClient(new WebViewClient() {
-		webView.setWebChromeClient(new WebChromeClient() {
-
-			@SuppressLint("NewApi")
-			// @Override
-			public void onPermissionRequest(final PermissionRequest request) {
-				runOnUiThread(new Runnable() {
-					@TargetApi(Build.VERSION_CODES.LOLLIPOP)
-					@Override
-					public void run() {
-						// grant the permission to access camera
-						request.grant(request.getResources());
-					}
-				});
-			}
-
-		});
 	}
 
 	/**
@@ -497,7 +481,7 @@ public class WebRTCActivity extends Activity {
 				Log.d("WebRTCActivity", "will play audio");
 				// TODO: need to figure out a better way to find out whether
 				// a connection is already established rather than some sleep
-				playAudio();
+//				playAudio();
 			}
 
 		} catch (Exception ex) {
@@ -511,6 +495,7 @@ public class WebRTCActivity extends Activity {
 	 */
 	private void playAudio()
 	{
+		sleep(5000);
 		if(mp == null)
 		{
 			Log.d("WebRTCActivity", "playAudio creates a media player");
@@ -530,8 +515,63 @@ public class WebRTCActivity extends Activity {
 	private void loadWebView(String url) {
 		Log.d("WebRTCActivity", "loadWebView loaded url");
 		initWebView();
+
+//		final View x = new View(this);
+//		final Activity activity = this;
+//		 webView.setWebViewClient(new WebViewClient() {
+		webView.setWebChromeClient(new WebChromeClient() {
+
+			@SuppressLint("NewApi")
+			// @Override
+			public void onPermissionRequest(final PermissionRequest request) {
+				runOnUiThread(new Runnable() {
+					@TargetApi(Build.VERSION_CODES.LOLLIPOP)
+					@Override
+					public void run() {
+						// grant the permission to access camera
+						request.grant(request.getResources());
+					}
+				});
+			}
+			
+			public void onProgressChanged(WebView view, int progress) {
+				// Activities and WebViews measure progress with
+				// different scales.
+				// The progress meter will automatically disappear when
+				// we reach 100%
+				// activity.setProgress(progress * 1000);
+				if (progress >= 99)
+					if (acceptIncomingRequest) {
+						playAudio();
+					} else {
+						Log.d("WebRTCActivity",
+								"loadWebView create a child view and make it animate");
+
+//						x.layout(0, 0, 40, 40);
+//						x.bringToFront();
+						imageView.setVisibility(View.VISIBLE);
+						final ViewGroup container = (ViewGroup) imageView
+								.getParent().getParent();
+						ObjectAnimator anim = ObjectAnimator.ofFloat(imageView,
+								"translationY", -container.getHeight());
+						anim.setDuration(5000);
+						anim.start();
+					}
+			}
+		});
+		
+//		webView.setWebViewClient(new WebViewClient() {
+//			public void onReceivedError(WebView view, int errorCode,
+//					String description, String failingUrl) {
+//				Toast.makeText(activity, "Oh no! " + description,
+//						Toast.LENGTH_SHORT).show();
+//			}
+//		});
+		
 		// have the webview load the url
 		webView.loadUrl(url);
+		
+		//playAnim();
 		chatInProgress = true;
 		Log.d("WebRTCActivity", "loadWebView chatInProgress: " + chatInProgress);
 		connectButton.setText(R.string.button_connect);
@@ -539,6 +579,13 @@ public class WebRTCActivity extends Activity {
 		hangupButton.setEnabled(true);
 	}
 
+	private void playAnim()
+	{
+		final ViewGroup container = (ViewGroup) webView.getParent().getParent();
+		ObjectAnimator anim = ObjectAnimator.ofFloat(hangupButton, "translationY", -container.getHeight());
+		anim.setDuration(5000);
+		anim.start();
+	}
 	/**
 	 * Show an alert dialog with message. user can either click OK or cancel no
 	 * real action is triggered
