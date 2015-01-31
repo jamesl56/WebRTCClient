@@ -15,6 +15,7 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.graphics.drawable.AnimationDrawable;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
 import android.os.Build;
@@ -55,6 +56,7 @@ public class WebRTCActivity extends Activity {
 	private String previousChatRoom = null;
 	private boolean acceptIncomingRequest = false;
 	private boolean chatInProgress = false;
+	private boolean isClearingWebView = false;
 
 	// server related constants
 	private static final String BASE_URL = "http://54.183.228.194:8080/SocialPlay-server/";
@@ -140,13 +142,18 @@ public class WebRTCActivity extends Activity {
 		if(mp != null){
 			mp.pause();
 		}
-		
-		// reliably reset the view state and release page resources
-		webView.loadUrl("about:blank");
-		// reset state and button states
+
+		// reset view and button states		
+		isClearingWebView = true;
 		chatInProgress = false;
 		hangupButton.setEnabled(false);
 		connectButton.setEnabled(true);
+		imageView.clearAnimation();
+		imageView.setVisibility(View.GONE);
+		Log.d("WebRTCActivity", "in clearWebViewCache isClearingWebView is : " + isClearingWebView);
+		
+		// reliably reset the view state and release page resources
+		webView.loadUrl("about:blank");
 		
 		// reset to default
 		acceptIncomingRequest = false;
@@ -522,7 +529,7 @@ public class WebRTCActivity extends Activity {
 		webView.setWebChromeClient(new WebChromeClient() {
 
 			@SuppressLint("NewApi")
-			// @Override
+			 @Override
 			public void onPermissionRequest(final PermissionRequest request) {
 				runOnUiThread(new Runnable() {
 					@TargetApi(Build.VERSION_CODES.LOLLIPOP)
@@ -535,29 +542,64 @@ public class WebRTCActivity extends Activity {
 			}
 			
 			public void onProgressChanged(WebView view, int progress) {
-				// Activities and WebViews measure progress with
-				// different scales.
-				// The progress meter will automatically disappear when
-				// we reach 100%
-				// activity.setProgress(progress * 1000);
 				if (progress >= 99)
-					if (acceptIncomingRequest) {
-						playAudio();
-					} else {
+					if (!isClearingWebView) {
+						if (acceptIncomingRequest) {
+							// the audio guidance will only be played
+							// on the party that joins the session
+							// because it takes time for the party to 
+							// accept incoming connection and join
+							playAudio();
+						} 
 						Log.d("WebRTCActivity",
-								"loadWebView create a child view and make it animate");
+								"loadWebView play animation in an imageview");
 
-//						x.layout(0, 0, 40, 40);
-//						x.bringToFront();
 						imageView.setVisibility(View.VISIBLE);
-						final ViewGroup container = (ViewGroup) imageView
-								.getParent().getParent();
-						ObjectAnimator anim = ObjectAnimator.ofFloat(imageView,
-								"translationY", -container.getHeight());
-						anim.setDuration(5000);
-						anim.start();
+
+						// play the animation
+						imageView.setBackgroundResource(R.drawable.anim);
+						imageView.post(new Runnable() {
+							@Override
+							public void run() {
+								AnimationDrawable frameAnimation = (AnimationDrawable) imageView
+										.getBackground();
+								frameAnimation.start();
+							}
+						});
+
+					} else {
+						// this is the progress change when clearing the web
+						// view
+						Log.d("WebRTCActivity", "in onProgressChanged isClearingWebView is : " + isClearingWebView);
+						isClearingWebView = false;
+						Log.d("WebRTCActivity", "in onProgressChanged isClearingWebView is : " + isClearingWebView);
 					}
+
+				// final ViewGroup container = (ViewGroup) imageView
+				// .getParent().getParent();
+				// ObjectAnimator anim = ObjectAnimator.ofFloat(imageView,
+				// "translationY", -container.getHeight());
+				// anim.setDuration(5000);
+				// anim.start();
+
 			}
+			
+			public void onPageFinished(WebView view, String url) {
+				if (acceptIncomingRequest) {
+					playAudio();
+				} else {
+					Log.d("WebRTCActivity",
+							"loadWebView create a child view and make it animate");
+
+					imageView.setVisibility(View.VISIBLE);
+					final ViewGroup container = (ViewGroup) imageView
+							.getParent().getParent();
+					ObjectAnimator anim = ObjectAnimator.ofFloat(imageView,
+							"translationY", -container.getHeight());
+					anim.setDuration(5000);
+					anim.start();
+				}				
+		    }
 		});
 		
 //		webView.setWebViewClient(new WebViewClient() {
