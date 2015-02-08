@@ -3,19 +3,16 @@ package com.peets.webrtc;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
 import java.net.HttpURLConnection;
 import java.net.URL;
-import java.util.Date;
-import java.util.Locale;
 import java.util.Collections;
+import java.util.Date;
 
 import org.json.JSONObject;
 
-import com.peets.socialplay.server.SocialPlayBuilders;
-import com.peets.socialplay.server.SocialPlayContext;
-import com.peets.socialplay.server.SocialPlayRequestBuilders;
-import com.linkedin.r2.transport.common.Client;
+import android.os.Handler;
+import android.util.Log;
+
 import com.linkedin.r2.transport.common.bridge.client.TransportClient;
 import com.linkedin.r2.transport.common.bridge.client.TransportClientAdapter;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
@@ -24,9 +21,8 @@ import com.linkedin.restli.client.Response;
 import com.linkedin.restli.client.ResponseFuture;
 import com.linkedin.restli.client.RestClient;
 import com.linkedin.restli.common.EmptyRecord;
-import com.linkedin.restli.common.IdResponse;
-import android.os.Handler;
-import android.util.Log;
+import com.peets.socialplay.server.SocialPlayBuilders;
+import com.peets.socialplay.server.SocialPlayContext;
 
 /**
  * the social play server handles three scenarios: 1. find a chat room 2. get an
@@ -101,16 +97,89 @@ public class SocialPlayServer {
 			// Extract the chatRoomId from JSON.
 			String body = new String(data, "UTF8");
 			JSONObject json = new JSONObject(body);
-			Log.d("SocialPlayServer", "performGet received: " + body);
+			Log.e("SocialPlayServer", "performGet received: " + body);
 			final String chatRoomId = json.getString("chatRoomId");
-			Log.d("SocialPlayServer", "performGet received chatRoomId: "
+			Log.e("SocialPlayServer", "performGet received chatRoomId: "
 					+ chatRoomId);
 			return chatRoomId;
 		} catch (final Exception ex) {
-			Log.d("SocialPlayServer", "performGet received exception:" + ex.getMessage());
+			Log.e("SocialPlayServer", "performGet received exception:" + ex.getMessage());
 			return null;
 		}
 	}
+	
+	/**
+	 * this is a similar GET operation as the find action
+	 * 
+	 * @param baseUrl
+	 * @return
+	 * @throws IllegalArgumentException
+	 */
+	public static SocialPlayServer isConnectionEstablished(String baseUrl)
+			throws IllegalArgumentException {
+		try {
+			URL url = new URL(baseUrl);
+			HttpURLConnection request = (HttpURLConnection) url
+					.openConnection();
+			request.setConnectTimeout(CONNECT_TIMEOUT);
+			request.setReadTimeout(READ_TIMEOUT);
+			return new SocialPlayServer(request, null);
+		} catch (IOException e) {
+			throw new IllegalArgumentException(e);
+		} catch (ClassCastException e) {
+			throw new IllegalArgumentException("URL must be HTTP: " + baseUrl,
+					e);
+		}
+	}
+
+	/**
+	 * this is a similar GET operation as the find action
+	 * 
+	 * @param baseUrl
+	 * @return
+	 * @throws IllegalArgumentException
+	 */
+	public static SocialPlayServer updateConnection(String baseUrl)
+			throws IllegalArgumentException {
+		try {
+			Log.e("SocialPlayServer", "updateConnection connected to: " + baseUrl);
+			URL url = new URL(baseUrl);
+			HttpURLConnection request = (HttpURLConnection) url
+					.openConnection();
+			request.setConnectTimeout(CONNECT_TIMEOUT);
+			request.setReadTimeout(READ_TIMEOUT);
+			return new SocialPlayServer(request, null);
+		} catch (IOException e) {
+			throw new IllegalArgumentException(e);
+		} catch (ClassCastException e) {
+			throw new IllegalArgumentException("URL must be HTTP: " + baseUrl,
+					e);
+		}
+	}
+	
+	public Boolean performIsConnectionEstablished() {
+		try {
+			connection.setRequestMethod("GET");
+			InputStream response = connection.getInputStream();
+			byte[] data = readAllBytes(response);
+			// Extract the chatRoomId from JSON.
+			String body = new String(data, "UTF8");
+			JSONObject json = new JSONObject(body);
+			Log.e("SocialPlayServer", "performIsConnectionEstablished received: " + body);
+			final String started = json.getString("started");
+			Log.e("SocialPlayServer", "performIsConnectionEstablished received started: "
+					+ started);
+			return Boolean.parseBoolean(started);
+		} catch (final Exception ex) {
+			Log.e("SocialPlayServer", "performIsConnectionEstablished received exception:" + ex.getMessage());
+			for(StackTraceElement se: ex.getStackTrace())
+			{
+				Log.e("SocialPlayServer", "performIsConnectionEstablished se:" + se.toString());
+			}
+			return false;
+		}
+	}
+	
 	/**
 	 * this is a hack to post to server, it reuses the get methods to
 	 * send response to client
@@ -144,7 +213,7 @@ public class SocialPlayServer {
 		try {
 			URL url = new URL(serverUrl);
 			request = (HttpURLConnection) url.openConnection();
-			Log.d("SocialPlayServer", "in create: " + serverUrl + " "
+			Log.e("SocialPlayServer", "in create: " + serverUrl + " "
 					+ chatRoomId);
 			final HttpClientFactory http = new HttpClientFactory();
 			final TransportClient transportClient = http.getClient(Collections
@@ -162,22 +231,22 @@ public class SocialPlayServer {
 					.setChatRoomId(chatRoomId).setTimestamp(
 							new Date().getTime());
 			CreateRequest<SocialPlayContext> createReq = builders.create().input(csc).build();
-			Log.d("SocialPlayServer", "in create: will send create request: " + createReq.toString());
+			Log.e("SocialPlayServer", "in create: will send create request: " + createReq.toString());
 			ResponseFuture<EmptyRecord> createFuture = restClient
 					.sendRequest(createReq);
-			Log.d("SocialPlayServer", "request sent");
+			Log.e("SocialPlayServer", "request sent");
 			Response<EmptyRecord> createResp = createFuture.getResponse();
 			int statusCode = createResp.getStatus();
-			Log.d("SocialPlayServer", "create receives status code: "
+			Log.e("SocialPlayServer", "create receives status code: "
 					+ statusCode);
 
 			return new SocialPlayServer(request, null);
 		} catch (IOException e) {
 			throw new IllegalArgumentException(e);
 		} catch (Exception ex) {
-			Log.d("SocialPlayServer", "in create: " + ex.getMessage());
+			Log.e("SocialPlayServer", "in create: " + ex.getMessage());
 			for (StackTraceElement elem : ex.getStackTrace()) {
-				Log.d("SocialPlayServer", "in create: " + elem.toString());
+				Log.e("SocialPlayServer", "in create: " + elem.toString());
 			}
 
 			return new SocialPlayServer(request, null);
@@ -250,15 +319,15 @@ public class SocialPlayServer {
 			// Extract the token from JSON.
 			String body = new String(data, "UTF8");
 			JSONObject json = new JSONObject(body);
-			Log.d("SocialPlayServer", "performFind received: " + body);
+			Log.e("SocialPlayServer", "performFind received: " + body);
 			final String chatRoomId = json.getString("value");
-			Log.d("SocialPlayServer", "performFind received chatRoomId: "
+			Log.e("SocialPlayServer", "performFind received chatRoomId: "
 					+ chatRoomId);
 			// Give it back to the client.
 			callingThread.post(new Runnable() {
 				public void run() {
 					if (client != null) {
-						Log.d("SocialPlayServer",
+						Log.e("SocialPlayServer",
 								"performFind handleResponse will send chatRoomId: "
 										+ chatRoomId);
 						client.handleResponse(chatRoomId, null);
@@ -269,7 +338,7 @@ public class SocialPlayServer {
 			callingThread.post(new Runnable() {
 				public void run() {
 					if (client != null) {
-						Log.d("SocialPlayServer",
+						Log.e("SocialPlayServer",
 								"performFind handleResponse will send null");
 						client.handleResponse(null, ex);
 					}
@@ -314,15 +383,15 @@ public class SocialPlayServer {
 			// Extract the token from JSON.
 			String body = new String(data, "UTF8");
 			JSONObject json = new JSONObject(body);
-			Log.d("SocialPlayServer", "performGet received: " + body);
+			Log.e("SocialPlayServer", "performGet received: " + body);
 			final String chatRoomId = json.getString("chatRoomId");
-			Log.d("SocialPlayServer", "performGet received chatRoomId: "
+			Log.e("SocialPlayServer", "performGet received chatRoomId: "
 					+ chatRoomId);
 			// Give it back to the client.
 			callingThread.post(new Runnable() {
 				public void run() {
 					if (client != null) {
-						Log.d("SocialPlayServer",
+						Log.e("SocialPlayServer",
 								"handleResponse will send chatRoomId: "
 										+ chatRoomId);
 						client.handleResponse(chatRoomId, null);
@@ -333,7 +402,7 @@ public class SocialPlayServer {
 			callingThread.post(new Runnable() {
 				public void run() {
 					if (client != null) {
-						Log.d("SocialPlayServer",
+						Log.e("SocialPlayServer",
 								"handleResponse will send null");
 						client.handleResponse(null, ex);
 					}
@@ -371,7 +440,7 @@ public class SocialPlayServer {
 			callingThread.post(new Runnable() {
 				public void run() {
 					if (client != null) {
-						Log.d("SocialPlayServer", "performCreate");
+						Log.e("SocialPlayServer", "performCreate");
 						client.handleResponse(null, null);
 					}
 				}
@@ -380,7 +449,7 @@ public class SocialPlayServer {
 			callingThread.post(new Runnable() {
 				public void run() {
 					if (client != null) {
-						Log.d("SocialPlayServer", "performCreate");
+						Log.e("SocialPlayServer", "performCreate");
 						client.handleResponse(null, ex);
 					}
 				}

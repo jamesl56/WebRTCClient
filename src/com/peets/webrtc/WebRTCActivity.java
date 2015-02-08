@@ -15,6 +15,7 @@ import android.annotation.TargetApi;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.content.DialogInterface;
+import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
 import android.media.MediaPlayer;
 import android.os.AsyncTask;
@@ -161,15 +162,12 @@ public class WebRTCActivity extends Activity {
 		Log.d("WebRTCActivity", "clearWebViewCache preserve previous chat room: " + previousChatRoom);
 		chatRoom = null;
 		
+		startActivity(new Intent(getApplicationContext(), PlaydateActivity.class));
 		// once a video session is terminated it needs to monitor
 		// incoming connection again
 		CheckExistingConnectionTask checkTask = new CheckExistingConnectionTask();
 		checkTask.execute();
-		
-//		if(mp2 == null)
-//		{
-//			mp2 = MediaPlayer.create(this, R.raw.ringtone);
-//		}
+
 	}
 
 	/**
@@ -544,13 +542,6 @@ public class WebRTCActivity extends Activity {
 			public void onProgressChanged(WebView view, int progress) {
 				if (progress >= 99)
 					if (!isClearingWebView) {
-						if (acceptIncomingRequest) {
-							// the audio guidance will only be played
-							// on the party that joins the session
-							// because it takes time for the party to 
-							// accept incoming connection and join
-							playAudio();
-						} 
 						Log.d("WebRTCActivity",
 								"loadWebView play animation in an imageview");
 
@@ -566,7 +557,15 @@ public class WebRTCActivity extends Activity {
 								frameAnimation.start();
 							}
 						});
-
+						
+						if (acceptIncomingRequest) {
+							// the audio guidance will only be played
+							// on the party that joins the session
+							// because it takes time for the party to 
+							// accept incoming connection and join
+							sleep(5000);
+							playAudio();
+						} 
 					} else {
 						// this is the progress change when clearing the web
 						// view
