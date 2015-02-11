@@ -95,6 +95,7 @@ public class PlaydateActivity extends Activity {
 		});
 		
 		imageView = (ImageView) findViewById(R.id.imageView1);
+		imageView.setImageResource(R.drawable.invite);
 		imageView.setVisibility(View.VISIBLE);
 	}
 
@@ -114,7 +115,7 @@ public class PlaydateActivity extends Activity {
 	}
 	@Override
 	protected void onDestroy() {
-		super.onDestroy();
+		super.onDestroy();			
 	}
 
 	/**
@@ -126,15 +127,24 @@ public class PlaydateActivity extends Activity {
 		chatInProgress = false;
 		Log.e("PlaydateActivity", "onStart");
 		super.onStart();
-		imageView.setImageResource(R.drawable.invite);
+		
+
+		checkTask = new CheckExistingConnectionTask();
+		checkTask.execute();
 		
 		if(mp2 == null)
 		{
 			mp2 = MediaPlayer.create(this, R.raw.ringtone);
 		}
-		duration = (long)mp2.getDuration() + 500;
-		checkTask = new CheckExistingConnectionTask();
-		checkTask.execute();
+		if(mp == null)
+		{
+			mp = MediaPlayer.create(this, R.raw.playdate);
+		}
+		duration = (long)mp.getDuration() + 500;
+		mp.start();
+
+//		sleep(duration);
+//		duration = (long)mp2.getDuration() + 500;
 		
 		danielButton.setText(R.string.button_daniel);
 		danielButton.setEnabled(true);
@@ -151,7 +161,7 @@ public class PlaydateActivity extends Activity {
 	 * 
 	 * @param milliseconds
 	 */
-	public void sleep(long milliseconds) {
+	public static void sleep(long milliseconds) {
 		try {
 			Log.e("PlaydateActivity", "will sleep " + milliseconds
 					+ "milliseconds");
@@ -264,15 +274,7 @@ public class PlaydateActivity extends Activity {
 	private void proceedToChat()
 	{
 		imageView.setImageResource(R.drawable.treasurehunt);
-//		
-//		if(mp == null)
-//		{
-//			mp = MediaPlayer.create(this, R.raw.sw);
-//		}
-//		duration = (long)mp.getDuration() + 500;		
-//		mp.start();
-//		sleep(duration);
-//		Intent intent = new Intent(getApplicationContext(), GuidedPlayActivity.class);
+
 		Intent intent = new Intent(getApplicationContext(), TreasureHuntImageActivity.class);
 		intent.putExtra(CHATROOM, chatRoom);
 		startActivity(intent);

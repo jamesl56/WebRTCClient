@@ -7,6 +7,7 @@ import android.app.AlertDialog;
 import android.content.DialogInterface;
 import android.content.Intent;
 import android.graphics.drawable.AnimationDrawable;
+import android.media.MediaPlayer;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.CountDownTimer;
@@ -32,10 +33,14 @@ public class GuidedPlayActivity extends Activity {
 	private String chatRoom = null;
 	private TextView scoreView = null;
 	private TextView timerView = null;
+	private MediaPlayer mp = null;
 
     private CountDownTimer countDownTimer;
     private final long startTime = 30 * 1000;
     private final long interval = 1 * 1000;
+    private int challengeCount = 1;
+    private int score = 0;
+    private static int challengeLimit = 2;
 
     public class MyCountDownTimer extends CountDownTimer {
         public MyCountDownTimer(long startTime, long interval) {
@@ -44,9 +49,17 @@ public class GuidedPlayActivity extends Activity {
 
         @Override
         public void onFinish() {
-            Intent intent = new Intent();
-            intent.setClass(getApplicationContext(),PlaydateActivity.class);
-            startActivity(intent);
+        	challengeCount++;
+			if (challengeCount <= challengeLimit) {
+				score += 10;
+				displayScore();
+				playAudio();
+				startTimer(startTime, interval);
+			}
+			else
+			{
+				timerView.setText("");
+			}
         }
 
         @Override
@@ -55,6 +68,13 @@ public class GuidedPlayActivity extends Activity {
         	timerView.setText(timerView.getText() + "" + millisUntilFinished / 1000);
         }
     }
+    
+    private void displayScore()
+    {
+		scoreView.setText(R.string.score);		
+		scoreView.setText(scoreView.getText() + "" + score);    	
+    }
+    
 	/**
 	 * Called when the activity is first created. This is where we'll hook up
 	 * our views in XML layout files to our application.
@@ -80,12 +100,14 @@ public class GuidedPlayActivity extends Activity {
 			}
 		});
 
+
 		scoreView = (TextView) findViewById(R.id.score);
 		scoreView.setText(R.string.score);
+		displayScore();
 		timerView = (TextView) findViewById(R.id.timer);
-        countDownTimer = new MyCountDownTimer(startTime, interval);
-        timerView.setText(String.valueOf(startTime / 1000));
-        countDownTimer.start();
+
+		playAudio();
+		startTimer(startTime, interval);
 		imageView = (ImageView) findViewById(R.id.guidedImageView);
 		imageView.setBackgroundResource(R.drawable.start);
 		imageView.post(new Runnable() {
@@ -106,6 +128,23 @@ public class GuidedPlayActivity extends Activity {
 		Log.e("GuidedPlayActivity", "retrieved chatRoom: " + chatRoom + " from intent");
 	}
 
+	private void playAudio()
+	{
+
+		mp = MediaPlayer.create(this, (challengeCount == 1) ? R.raw.challenge1
+				: R.raw.challenge2);
+
+		long duration = (long) mp.getDuration() + 500;
+		mp.start();
+//		PlaydateActivity.sleep(duration);	
+	}
+	
+	private void startTimer(long period, long interval)
+	{
+        countDownTimer = new MyCountDownTimer(period, interval);
+        timerView.setText(String.valueOf(startTime / 1000));
+        countDownTimer.start();
+	}
 	@Override
 	protected void onDestroy() {
 		super.onDestroy();

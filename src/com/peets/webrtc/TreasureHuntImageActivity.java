@@ -55,7 +55,7 @@ public class TreasureHuntImageActivity extends Activity {
 		
 		if(mp == null)
 		{
-			mp = MediaPlayer.create(this, R.raw.sw);
+			mp = MediaPlayer.create(this, R.raw.treasurehunt);
 			duration = mp.getDuration();
 		}	
 		mp.start();
